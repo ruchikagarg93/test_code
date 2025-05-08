@@ -1,0 +1,51 @@
+services:
+
+  worker:
+    image: ${DOCKER_REGISTRY}/pr-flyers-metrics-worker-worker:${DOCKER_TAG}
+    build:
+      context: .
+      target: testing
+      args:
+        CIS_APP: worker
+        CI: ${CI}
+        DOCKER_REGISTRY: python
+        PYTHON_VERSION: '3.9'
+        DOCKER_IMAGE_VARIANT: slim-bookworm
+        PDM_BUILD_SCM_VERSION: ${PROJECT_VERSION}
+      secrets:
+        - secrets.env
+
+
+
+  devel:
+    image: ${DOCKER_REGISTRY}/pr-flyers-metrics-worker-${COMPOSE_PLATFORM}:${DOCKER_TAG}
+    ipc: host
+    build:
+      target: devel-${COMPOSE_PLATFORM}
+      context: .
+      args:
+        DOCKER_REGISTRY: python
+        PYTHON_VERSION: '3.9'
+        DOCKER_IMAGE_VARIANT: slim-bookworm
+        PDM_BUILD_SCM_VERSION: ${PROJECT_VERSION}
+        USERNAME: ${COMPOSE_USER_NAME}
+        GROUPNAME: ${COMPOSE_GROUP_NAME}
+        USERUID: ${COMPOSE_USER_UID}
+        USERGID: ${COMPOSE_USER_GID}
+        USERSHELL: ${COMPOSE_USER_SHELL}
+      secrets:
+        - secrets.env
+    runtime: ${COMPOSE_RUNTIME}
+    restart: unless-stopped
+    volumes:
+      - "${COMPOSE_DATA_DIR}:/data"
+      - "${COMPOSE_CACHE_DIR}:/cache"
+      - "${COMPOSE_CODE_DIR}:/workspace/aimlops-pr-flyers-metrics-worker"
+    environment:
+      HF_HOME: /cache
+      ARTIFACTORY_PYPI_USER: ${ARTIFACTORY_PYPI_USER}
+      ARTIFACTORY_PYPI_PASS: ${ARTIFACTORY_PYPI_PASS}
+
+secrets:
+  secrets.env:
+    file: .secrets.env

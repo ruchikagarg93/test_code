@@ -1,0 +1,284 @@
+[project]
+name = "pr-flyers-metrics-worker"
+description = "This is a project generated for promoflyers metrics worker."
+license = {file = "LICENSE"}
+readme = "README.md"
+keywords = [
+    "python",
+    "ainn",
+    "niq",
+]
+classifiers = [
+    "License :: Other/Proprietary License",
+    "Development Status :: 4 - Beta",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+]
+dynamic = ["version"]
+requires-python = ">=3.9,<3.11"
+dependencies = [
+    "jsonargparse>=4.28.0",
+    "typing-extensions>=4.11.0",
+]
+
+[dependency-groups]
+# This replaces old [tool.pdm.dev-dependencies]
+# https://peps.python.org/pep-0735
+test = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "pytest-xdist>=3.3",
+]
+lint = [
+    "pre-commit>=3.0.0,<4",
+    "ruff>=0.9.6",
+]
+
+[[project.authors]]
+name = "AIML4_ART"
+email = "AIML4_ART@nielseniq.com"
+
+[project.optional-dependencies]
+worker = [
+    # required dependencies to run the worker in CIS
+    "cis-runtime[adlsfs,azureml,azuresb,redis]>=1.0.0,<2.0.0",
+]
+
+[project.scripts]
+pr_flyers_metrics_worker = "cis.runtime.cli:main"
+
+[project.urls]
+Repository = "https://github.com/niq-enterprise/aimlops-pr-flyers-metrics-worker"
+Homepage = "https://github.com/niq-enterprise/aimlops-pr-flyers-metrics-worker"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.pytest.ini_options]
+addopts = [
+    "-x",
+    "--capture=no",
+    "--color=yes",
+    "--durations=0",
+    "--durations-min=1.0",
+]
+log_cli = true
+testpaths = "tests/"
+filterwarnings = ["ignore::DeprecationWarning", "ignore::UserWarning"]
+
+[tool.coverage.run]
+branch = true
+data_file = ".coverage/.coverage"
+
+[tool.coverage.report]
+exclude_lines = [
+    "raise NotImplementedError",
+    "raise NotImplementedError()",
+    "if __name__ == .__main__.:",
+]
+
+[tool.interrogate]
+ignore-init-method = true
+ignore-init-module = true
+ignore-magic = true
+ignore-semiprivate = true
+ignore-private = true
+ignore-property-decorators = true
+ignore-module = true
+ignore-nested-functions = true
+ignore-nested-classes = true
+ignore-setters = true
+fail-under = 75
+exclude = ["build", "tests", "notebooks"]
+ignore-regex = ["^get$", "^mock_.*", "^test_.*"]
+verbose = 2
+quiet = false
+whitelist-regex = []
+color = true
+omit-covered-files = false
+
+[tool.yamlfix]
+explicit_start = false
+allow_duplicate_keys = false
+line_length = 119
+sequence_style = "keep_style"
+preserve_quotes = false
+quote_representation = '"'
+none_representation = "null"
+whitelines = 1
+section_whitelines = 0
+
+[tool.codespell]
+skip = "pyproject.toml"
+quiet-level = 3
+ignore-words-list = "aks"
+
+# https://github.com/charliermarsh/ruff
+[tool.ruff]
+line-length = 88
+extend-include = ["*.ipynb"]
+exclude = [
+    ".eggs",
+    ".git",
+    ".mypy_cache",
+    ".ruff_cache",
+    "build",
+    "dist",
+]
+
+[tool.ruff.lint]
+# Select rules to apply
+# https://beta.ruff.rs/docs/rules
+select = [
+    "A",    # see: https://pypi.org/project/flake8-builtins
+    "B",    # see: https://pypi.org/project/flake8-bugbear
+    "C4",   # see: https://pypi.org/project/flake8-comprehensions
+    "C90",  # see: https://pypi.org/project/mccabe
+    "D",    # see: https://pypi.org/project/pydocstyle
+    "E",    # see: https://pypi.org/project/pycodestyle
+    "F",    # see: https://pypi.org/project/pyflakes
+    "FA",   # see: https://pypi.org/project/flake8-future-annotations
+    "FIX",  # see: https://pypi.org/project/flake8-fixme
+    "EXE",  # see: https://pypi.org/project/flake8-executable
+    "ERA",  # see: https://pypi.org/project/flake8-eradicate
+    "I",    # see: https://pypi.org/project/isort
+    "ISC",  # see: https://pypi.org/project/flake8-implicit-str-concat
+    "ICN",  # see: https://github.com/joaopalmeiro/flake8-import-conventions
+    "NPY",  # see: https://docs.astral.sh/ruff/rules/#numpy-specific-rules-npy
+    "PERF", # see: https://pypi.org/project/perflint
+    "PD",   # see: https://pypi.org/project/pandas-vet
+    "PIE",  # see: https://pypi.org/project/flake8-pie
+    "PL",   # see: https://pypi.org/project/pylint
+    "PT",   # see: https://pypi.org/project/flake8-pytest-style
+    "Q",    # see: https://pypi.org/project/flake8-quotes
+    "RET",  # see: https://pypi.org/project/flake8-return
+    "RUF",  # see: https://docs.astral.sh/ruff/rules/#ruff-specific-rules-ruf
+    "S",    # see: https://pypi.org/project/flake8-bandit
+    "SIM",  # see: https://pypi.org/project/flake8-simplify
+    "TD",   # see: https://github.com/orsinium-labs/flake8-todos
+    "TID",  # see: https://pypi.org/project/flake8-tidy-imports
+    "T10",  # see: https://pypi.org/project/flake8-debugger
+    "UP",   # see: https://pypi.org/project/pyupgrade
+    "W",    # see: https://pypi.org/project/pycodestyle
+    "YTT",  # see: https://pypi.org/project/flake8-2020
+]
+ignore = [
+    "D100",   # module documentation
+    "D104",   # Missing docstring in public package
+    "D107",   # Missing docstring in __init__
+    "D202",   # No black lines after docstring
+    "D105",   # Missing docstring in magic method
+    "D401",   # First line imperative
+    "E501",   # line length violations
+    "EXE002", # Unnecessary shebang; Windows VSCode creates issues here
+    "FA100",  # Missing `from __future__ import annotations
+    "FIX001", # Line contains `FIXME`
+    "FIX002", # Line contains TODO, consider resolving the issue
+    "ISC001", # Implicit string concatenation
+    "RET504", # Unnecessary variable assignment before `return` statement
+    "PLR0913", # Too many arguments
+    "TD001",  # Missing TODO
+    "TD002",  # Missing author in TODO
+    "TD003",  # Missing issue link on the line of TODO
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = [
+    "D100",  # Missing docstring in public module
+    "D101",  # Missing docstring in public class
+    "D102",  # Missing docstring in public method
+    "D103",  # Missing docstring in public function
+    "D104",  # Missing docstring in public package
+    "D105",  # Missing docstring in magic method
+    "D107",  # Missing docstring in `__init__`
+    "S101",  # Use of `assert` detected
+]
+"notebooks/**" = [
+    "B018",  # Found useless expression
+    "D103",  # Missing docstring in public function
+    "E402",  # Module level import not at top of file
+]
+"docs/source/tutorials/**" = [
+    "B018",  # Found useless expression
+    "D103",  # Missing docstring in public function
+    "E402",  # Module level import not at top of file
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["pr_flyers_metrics_worker"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pydocstyle]
+convention = 'google'
+
+[tool.ruff.lint.pylint]
+max-args = 10
+
+[tool.pdm]
+[tool.pdm.version]
+source = "scm"
+write_to = "pr_flyers_metrics_worker/VERSION"
+
+[tool.pdm.build]
+includes = ["src"]
+package-dir = "src"
+source-includes = ["tests"]
+
+[[tool.pdm.source]]
+name = "pypi"
+url = "https://pypi.python.org/simple"
+verify_ssl = true
+
+[[tool.pdm.source]]
+name = "artifactory"
+url = "https://${ARTIFACTORY_PYPI_USER}:${ARTIFACTORY_PYPI_PASS}@artifactory.adlm.nielseniq.com/artifactory/api/pypi/innovation-pypi-prod-ml-local/simple"
+verify_ssl = true
+
+[[tool.pdm.source]]
+name = "innovation"
+url = "https://${ARTIFACTORY_PYPI_USER}:${ARTIFACTORY_PYPI_PASS}@artifactory.adlm.nielseniq.com/artifactory/api/pypi/innovation-pypi-prod-ml-local/simple"
+verify_ssl = true
+include_packages = ["eliza-*"]
+
+[[tool.pdm.source]]
+name = "technology"
+url = "https://${ARTIFACTORY_PYPI_USER}:${ARTIFACTORY_PYPI_PASS}@artifactory.adlm.nielseniq.com/artifactory/api/pypi/technology-pypi-prod-cis2mlops-local/simple"
+verify_ssl = true
+include_packages = ["cis-*", "dmle-*", "azure-common-utils", "wrapper-worker", "redis-common-utils"]
+
+[tool.pdm.resolution]
+respect-source-order = true
+
+[tool.pdm.scripts]
+_.env_file = ".env"
+# Run pre-commit hooks on all the files
+lint = "pre-commit run --all-files"
+# Run tests with the options in tool.pytest.ini_options
+tests = "pytest --cov=pr_flyers_metrics_worker --cov-report=xml"
+# Print the coverage report
+post_tests = "coverage report"
+
+# Make tasks
+azure-login.call = "make:azure_login"
+docker-login.call = "make:docker_login"
+docker-build.call = "make:docker_cmd('build')"
+docker-push.call = "make:docker_cmd('push')"
+docker-run.call = "make:docker_run"
+devcontainer.call = "make:devcontainer"
+sshcontainer.call = "make:sshcontainer"
+deploy.call = "make:deploy"
+
+[[tool.uv.index]]
+name = "artifactory"
+url = "https://artifactory.adlm.nielseniq.com/artifactory/api/pypi/innovation-pypi-prod-ml-local/simple"
+
+[[tool.uv.index]]
+name = "innovation"
+url = "https://artifactory.adlm.nielseniq.com/artifactory/api/pypi/innovation-pypi-prod-ml-local/simple"
+
+[[tool.uv.index]]
+name = "technology"
+url = "https://artifactory.adlm.nielseniq.com/artifactory/api/pypi/technology-pypi-prod-cis2mlops-local/simple"

@@ -1,0 +1,6 @@
+services:
+  devel:
+    ports:
+      - ${COMPOSE_SSH_PORT}:22
+    volumes:
+      - "${COMPOSE_HOME_DIR}/${COMPOSE_USER_NAME}:/home/${COMPOSE_USER_NAME}"

@@ -1,0 +1,27 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 0.9.3
+_src_path: https://github.com/niq-enterprise/ainn-python-template.git
+author_email: AIML4_ART@nielseniq.com
+author_fullname: AIML4_ART
+cis_application: projectrun
+cis_characteristic: promoflyers-metrics
+cis_consumer: promoflyers
+cis_queue_backend: redis
+container_registry_dev: cisacreastus2.azurecr.io
+container_registry_prod: cisacreastus2.azurecr.io
+copyright_date: '2025'
+copyright_license: NIQ
+package_cli_name: pr_flyers_metrics_worker
+package_distribution_name: pr-flyers-metrics-worker
+package_import_name: pr_flyers_metrics_worker
+project_description: This is a project generated for promoflyers metrics worker.
+project_name: pr-flyers-metrics-worker
+push_container_image: true
+repository_name: aimlops-pr-flyers-metrics-worker
+repository_namespace: niq-enterprise
+requires_python: '>=3.9,<3.11'
+use_cis_runtime: true
+use_databricks_spark: false
+use_eliza_predict: false
+use_nvidia_cuda: false
+worker_type: inference

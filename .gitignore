@@ -1,0 +1,95 @@
+# Ignore big binaries data
+/data
+/tmp
+*.pt
+*.onnx
+
+# Ignore changes to the local environment
+.env
+.secrets.env
+
+# Ignore core dumps
+core.*
+
+# Ignore vscode project files
+*.code-workspace
+!.vscode/example.code-workspace
+.vscode/settings.json
+.vscode/launch.json
+.devcontainer/devcontainer.json
+
+# Byte-compiled / optimized / DLL files
+__pycache__
+*.py[cod]
+*.pyc
+*$py.class
+
+# Distribution / packaging
+build/
+/sdist
+/dist
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*,cover
+.hypothesis/
+.pytest_cache
+.ruff_cache
+.empty
+logs
+
+# Sphinx documentation
+docs/build
+docs/source/apidocs
+
+# IPython Notebook
+.ipynb_checkpoints
+
+# pyenv
+.python-version
+
+# virtualenv
+.venv
+__pypackages__
+
+# Pycharm Config
+/.idea/*
+/.idea/inspectionProfiles/*
+
+# Mac files
+.DS_Store
+
+# AzureML
+.azureml
+.amlignore
+.amlignore.amltmp
+
+# PDM config
+.pdm.toml
+.pdm-python
+.pdm-build
+VERSION
+
+# MLFlow and lightning
+mlruns
+lightning_logs
+
+# Secrets and files with secret in name
+bundle.yaml
+*secret*
+.tmp
+.deployment
+deployment/**/config
