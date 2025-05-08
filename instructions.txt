@@ -1,0 +1,39 @@
+Request:
+	"input": {
+			"assets": [
+				{
+					"name": "flyers-DE-202327-feedback.csv",
+					"path": "/promoflyers/promoflyers/input/REQ-04149dc1-b987-4d7b-81e9-4cde7acfe09f/feedback202330.csv",
+					"delimiter": ",",
+					"iso_week": 202330
+				}
+			]
+		}
+ 
+ 
+Steps: 
+	* Donwload the input CSV file locally to a temporal folder.
+	* Check if the corresponding prediction file exist for each feedback url file into the previous input file.(generate_data_for_output_csv_file)
+	* Download the feedback url file.
+	* Upload the downloaded feedback file to AzureStorage.
+	* Index annotation in database.
+	* Generate output CSV file for the worker response. (process_results)
+ 
+Example:
+ 
+Worker(CisWorker):
+...
+ 
+@override
+def run(...):
+	# RUN ALL STEPS -> ml_exec_request
+	self.download_input()
+	self.process_predictions()
+	self.proces_results()
+ 
+ 
+def process_predictions():
+	self.check_predict_files()
+	self.download_fedback()
+	self.upload_fedback()
+	self.index_fedback()
