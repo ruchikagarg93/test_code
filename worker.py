@@ -4,6 +4,7 @@ import tempfile
 import logging
 from azure.storage.blob import BlobServiceClient
 from request import CisRequestInput
+from src.index.indexer import insert_feedback
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -117,10 +118,8 @@ class Worker:
         Placeholder for actual DB logic.
         """
         logger.info("Indexing feedback entries in database...")
-        # TODO: implement real DB insertion logic here
-        for e in entries:
-            logger.debug(f"Indexed entry: {e}")
-
+        insert_feedback(entries)  # Assuming insert_feedback is used for DB insertion.
+        
     def process_results(self, entries: list, output_path: str):
         """
         Generates output CSV file for the worker response.
@@ -143,7 +142,7 @@ class Worker:
         preds = self.check_prediction_files(local_input)
         local_feedbacks = self.download_feedback(preds)
         self.upload_feedback(local_feedbacks, feedback_container)
-        self.index_feedback(preds)
+        self.index_feedback(preds)  # Index feedback here
         self.process_results(preds, output_path)
         logger.info("Worker run completed.")
-                        
+    
