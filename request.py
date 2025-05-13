@@ -1,26 +1,30 @@
-from pydantic import BaseModel, PlainSerializer
-from typing import Annotated, Optional, Union
+from pydantic import BaseModel
+from typing import List, Union, Optional
 from pathlib import Path
+from cis.runtime.core import CisRequest  # the runtime’s base request
+
 
 class CisAsset(BaseModel):
     """An asset in the request."""
-    
     name: str
-    path: Union[str, Path]  # This can be a string or Path
-    delimiter: Optional[str] = None  # Optional delimiter for CSV files
-    iso_week: Optional[int] = None  # ISO week (optional)
+    path: Union[str, Path]
+    delimiter: Optional[str] = None
+    iso_week: Optional[int] = None
 
-class CisRequestInput(BaseModel):
-    """The input data of the request."""
 
-    application: str
-    consumer: str
-    country: str
-    characteristics: list[str]
-    assets: Optional[list[CisAsset]] = None
+class CisInput(BaseModel):
+    """The nested `input` block."""
+    assets: List[CisAsset]
 
 
 class CisRequestUp(CisRequest):
-    """A request received in CIS."""
-
-    input: CisRequestInput
+    """
+    A CIS request that adds our `input.assets` structure on top 
+    of the runtime’s CisRequest base.
+    """
+    application: str
+    consumer: str
+    country: str
+    characteristics: List[str]
+    client: Optional[str]
+    input: CisInput
