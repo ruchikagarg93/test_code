@@ -2,14 +2,19 @@ import os
 import csv
 import tempfile
 import logging
+import pandas as pd
+from typing_extensions import override
+from azureml.core import Workspace
+from redis import Redis
 from azure.storage.blob import BlobServiceClient
-from request import CisRequestInput
-from src.index.indexer import insert_feedback
+from cis.runtime.workers import CisWorker
+from cis.runtime.core import CisRequest, CisRequestInput
+from src.pr_flyers_metrics_worker.worker.worker import indexer
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-class Worker:
+class Worker(CisWorker):
     def __init__(self, azure_connection_string: str):
         # Initialize Azure Blob service client
         self.blob_service_client = BlobServiceClient.from_connection_string(
@@ -118,7 +123,7 @@ class Worker:
         Placeholder for actual DB logic.
         """
         logger.info("Indexing feedback entries in database...")
-        insert_feedback(entries)  # Assuming insert_feedback is used for DB insertion.
+        indexer(entries)
         
     def process_results(self, entries: list, output_path: str):
         """
@@ -145,4 +150,3 @@ class Worker:
         self.index_feedback(preds)  # Index feedback here
         self.process_results(preds, output_path)
         logger.info("Worker run completed.")
-    
