@@ -118,12 +118,34 @@ class Worker(CisWorker):
                 blob_client.upload_blob(data, overwrite=True)
 
     def index_feedback(self, entries: list):
-        """
-        Indexes annotation in the database.
-        Placeholder for actual DB logic.
-        """
-        logger.info("Indexing feedback entries in database...")
-        indexer(entries)
+    """
+    Indexes feedback entries in the database.
+    Uses the IndexController to add annotations to the database.
+    """
+    logger.info("Indexing feedback entries in database...")
+
+    # Initialize IndexController for database interaction
+    index_controller = indexer.IndexController()
+
+    # Iterate over the valid entries and add them to the database
+    for entry in entries:
+        try:
+            # Prepare the annotation data (ensure it's formatted correctly)
+            annotation = indexer.AnnotationSchema(
+                request_id=entry.get("request_id"),
+                country_code=entry.get("country_code"),
+                retailer=entry.get("retailer"),
+                isoweek=entry.get("isoweek"),
+                annotation_path=entry.get("annotation_path"),
+                image_path=entry.get("image_path"),
+            )
+            
+            # Add the annotation to the database
+            index_controller.add_annotation(annotation)
+            logger.info(f"Successfully indexed entry with request_id: {entry.get('request_id')}")
+        except Exception as e:
+            logger.error(f"Failed to index entry with request_id: {entry.get('request_id')}. Error: {e}")
+            continue
         
     def process_results(self, entries: list, output_path: str):
         """
