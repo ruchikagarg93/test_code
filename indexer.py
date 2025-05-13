@@ -1,12 +1,14 @@
-from typing import Optional, Dict
-import os
+from typing import Optional
 import logging
-from src.pr_flyers_metrics_worker.worker.worker.config import Config
-
 from sqlalchemy import Column, Integer, String, create_engine, MetaData
 from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
+from src.pr_flyers_metrics_worker.worker.worker.config import Config
 
+# Setting up the base for SQLAlchemy
 Base = declarative_base()
+
+# Logging setup
+logger = logging.getLogger(__name__)
 
 def get_database_uri():
     """
@@ -41,7 +43,6 @@ def get_session(db_uri: str) -> scoped_session:
     session_factory = sessionmaker(bind=create_engine(db_uri), expire_on_commit=False)
     Session = scoped_session(session_factory)
     return Session()
-
 
 class IndexController:
     """
