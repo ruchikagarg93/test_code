@@ -1,4 +1,4 @@
-from cis.runtime.core import CisRequestInput
+from src.pr_flyers_metrics_worker.worker.worker.request import CisRequestUp
 
 # Sample request input
 request_data = {
@@ -21,5 +21,5 @@ request_data = {
     }
 }
 
-# Initialize CisRequestInput with the data
-request_input = CisRequestInput(request_data)
+req = CisRequestUp(**request_data)
+worker.run(req, output_path, feedback_container)
