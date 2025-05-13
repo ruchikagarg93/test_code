@@ -62,8 +62,7 @@ class Worker(CisWorker):
     def check_prediction_files(self, local_input_csv: str) -> list:
         """
         Checks if the corresponding prediction file exists for each feedback URL file
-        in the input CSV.
-        Returns a list of valid entries (dicts).
+        in the input CSV. Returns a list of valid entries with metadata.
         """
         valid_entries = []
         with open(local_input_csv, 'r', newline='') as f:
@@ -73,14 +72,24 @@ class Worker(CisWorker):
                 if not feedback_file:
                     logger.warning("Missing filename in CSV row. Skipping.")
                     continue
-
+    
                 prediction_file = feedback_file.replace('.csv', '_prediction.json')
                 if not os.path.exists(prediction_file):
                     logger.warning(f"Prediction file not found: {prediction_file}. Skipping.")
                     continue
-
-                valid_entries.append({'feedback_file': feedback_file, 'prediction_file': prediction_file})
+    
+                valid_entries.append({
+                    'feedback_file': feedback_file,
+                    'prediction_file': prediction_file,
+                    'request_id': row.get('request_id'),
+                    'country_code': row.get('country_code'),
+                    'retailer': row.get('retailer'),
+                    'isoweek': row.get('iso_week') or row.get('isoweek'),
+                    'annotation_path': prediction_file,
+                    'image_path': feedback_file
+                })
         return valid_entries
+
 
     def download_feedback(self, entries: list) -> list:
         """
@@ -118,34 +127,34 @@ class Worker(CisWorker):
                 blob_client.upload_blob(data, overwrite=True)
 
     def index_feedback(self, entries: list):
-    """
-    Indexes feedback entries in the database.
-    Uses the IndexController to add annotations to the database.
-    """
-    logger.info("Indexing feedback entries in database...")
-
-    # Initialize IndexController for database interaction
-    index_controller = indexer.IndexController()
-
-    # Iterate over the valid entries and add them to the database
-    for entry in entries:
-        try:
-            # Prepare the annotation data (ensure it's formatted correctly)
-            annotation = indexer.AnnotationSchema(
-                request_id=entry.get("request_id"),
-                country_code=entry.get("country_code"),
-                retailer=entry.get("retailer"),
-                isoweek=entry.get("isoweek"),
-                annotation_path=entry.get("annotation_path"),
-                image_path=entry.get("image_path"),
-            )
-            
-            # Add the annotation to the database
-            index_controller.add_annotation(annotation)
-            logger.info(f"Successfully indexed entry with request_id: {entry.get('request_id')}")
-        except Exception as e:
-            logger.error(f"Failed to index entry with request_id: {entry.get('request_id')}. Error: {e}")
-            continue
+        """
+        Indexes feedback entries in the database.
+        Uses the IndexController to add annotations to the database.
+        """
+        logger.info("Indexing feedback entries in database...")
+    
+        # Initialize IndexController for database interaction
+        index_controller = indexer.IndexController()
+    
+        # Iterate over the valid entries and add them to the database
+        for entry in entries:
+            try:
+                # Prepare the annotation data (ensure it's formatted correctly)
+                annotation = indexer.AnnotationSchema(
+                    request_id=entry.get("request_id"),
+                    country_code=entry.get("country_code"),
+                    retailer=entry.get("retailer"),
+                    isoweek=entry.get("isoweek"),
+                    annotation_path=entry.get("annotation_path"),
+                    image_path=entry.get("image_path"),
+                )
+                
+                # Add the annotation to the database
+                index_controller.add_annotation(annotation)
+                logger.info(f"Successfully indexed entry with request_id: {entry.get('request_id')}")
+            except Exception as e:
+                logger.error(f"Failed to index entry with request_id: {entry.get('request_id')}. Error: {e}")
+                continue
         
     def process_results(self, entries: list, output_path: str):
         """
