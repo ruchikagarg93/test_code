@@ -1,0 +1,41 @@
+  ENV: rnd
+  rnd:
+    redis_cache_host: cis-eu-rnd-job-cache-redis-headless.cis-rnd-shared-services.svc.cluster.local         # Redis cache host
+    redis_cache_port: 26379                                                                                 # Redis cache port
+    redis_cache_password: RndBg1Ow0CrDlNqWMMDOaqc                                                           # Redis cache password
+    redis_queue_host: cis-eu-rnd-job-requestqueue-redis-headless.cis-rnd-shared-services.svc.cluster.local  # Redis queue host
+    redis_queue_port: 26379                                                                                 # Redis queue port
+    redis_queue_password: RndJKuECBMjxNYBfr3HcuIt                                                           # Redis queue password
+    redis_metadata_host: cis-eu-rnd-job-metadata-redis-headless.cis-rnd-shared-services.svc.cluster.local   # Redis metadata host
+    redis_metadata_port: 26379                                                                              # Redis metadata port
+    redis_metadata_password: RndSylS4Lqp4TUhe9phTg85                                                        # Redis metadata pass
+    redis_queue_time_out: 60                                                              # Queue message timeout / visible time
+    redis_queue_name: projectrun_promoflyers_promoflyers-metrics                          # Name of the Redis queue associated to this worker
+    component_name: dmle.promoflyers.metrics.worker                                       # Name of the component (used for logging and audit trail)
+    log_to_console: 'True'                                                                # If true, logs will be printed in stdout
+    log_to_file: 'True'                                                                   # If true, logs will be printed in the log file
+    get_log_file_name: flyercoding_metrics.worker                                         # Name of the log file (without extension)
+    log_file_path: /home/dmleuser/Worker/logs                                             # Path to the logs folder                                                          
+    is_continuous: false                                                                  # Flag indicating if the worker keeps listening messages, if false, only one message will be consumed
+    adls_gen2_account_name: cseuprodmisc                                                  # ADLS account name
+    adls_gen2_container_name: cis2seis                                                    # ADLS container name
+    adls_gen2_tenant_id: 6ac7a1f4-5fb1-4153-bb4f-12d2020a1f7d                             # ADLS tenant ID
+    adls_gen2_client_id: 26a6dccb-0843-48c7-a2b7-29abf3ecef31                             # ADLS client ID
+    adls_gen2_client_secret: s0lf0dX-~TDhuCgDJf_HHf9xT5oid__-5G                           # ADLS client secret
+    promoflyer_container_name: pflyers-data-rnd
+    promoflyer_storage_account: cis2pflyereustg
+    input_storage_type: ADLS_GEN2                                                         # Type of input storage (ADLS_GEN2 | HDFS)
+    output_storage_type: ADLS_GEN2                                                        # Type of output storage (ADLS_GEN2 | HDFS)
+    dmle_output_home_path: dmle                                                           # Parent storage folder where the files will be located
+    azureml_subscription_id: ff049066-e53f-42b8-a114-43d97b1e8220
+    azureml_resource_group: CIS2-PROMO-FLYER-WESTEUROPE-RG
+    azureml_workspace_name: cis2pflyereu-ws
+    azureml_tenant_id: 6ac7a1f4-5fb1-4153-bb4f-12d2020a1f7d
+    azureml_client_id: 3bc6557a-dad1-40bd-a435-37ca0a56c497
+    azureml_client_secret: thZ58Y-d1a4nj~96kJ_HIu.rRC6AByqTRN
+    token_cis: si=cis-pflyer-access&spr=https&sv=2022-11-02&sr=c&sig=JF%2Bh6P6MFJFJOzCqaLoBN0aQdkXVkafKnRK0rDFZ62o%3D
+    db_server: bcewprodamlfx.postgres.database.azure.com
+    db_port: 5432
+    db_name: cismlopsflyerseunp
+    db_user: amlmonitordev
+    db_pass: ea306d54X0faaX4e1dX829dXf6c11315023b
