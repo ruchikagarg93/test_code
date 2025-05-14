@@ -15,7 +15,8 @@ from azure.storage.blob import BlobServiceClient
 from redis import Redis
 from azureml.core import Workspace
 
-from src.pr_flyers_metrics_worker.worker.worker.indexer import IndexController, AnnotationSchema
+from pr_flyers_metrics_worker.worker.worker.indexer import AnnotationSchema, IndexController
+from config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
@@ -23,51 +24,16 @@ logging.basicConfig(level=logging.INFO)
 class Worker(CisWorker):
     def __init__(
         self,
-        # Core CISWorker dependencies
         filesystem: AbstractFileSystem,
         cache: Caching,
         metadata_client: Caching,
         audit_queue: MessageQueue,
-
-        # Azure Blob Storage
-        promoflyer_storage_account: str,
-        promoflyer_container_name: str,
-        token_cis: str,
-
-        # Redis cache config
-        redis_cache_host: str,
-        redis_cache_port: int,
-        redis_cache_password: str,
-
-        # Redis queue config
-        redis_queue_host: str,
-        redis_queue_port: int,
-        redis_queue_password: str,
-
-        # Database config
-        db_server: str,
-        db_port: int,
-        db_name: str,
-        db_user: str,
-        db_pass: str,
-
-        # Azure ML workspace config
-        azureml_subscription_id: str,
-        azureml_resource_group: str,
-        azureml_workspace_name: str,
-        azureml_tenant_id: str,
-        azureml_client_id: str,
-        azureml_client_secret: str,
     ) -> None:
         """
-        Initializes the Worker, injecting:
-         - filesystem, cache, metadata_client, audit_queue (CisWorker)
-         - Redis cache & queue clients
-         - BlobServiceClient using SAS token
-         - Database connection config
-         - Azure ML Workspace
+        Initializes the Worker by loading all configuration centrally
+        and wiring up Redis, Blob, DB indexer, and Azure ML.
         """
-        # 1) initialize base class
+        # 1) Initialize base class
         super().__init__(
             filesystem=filesystem,
             cache=cache,
@@ -75,45 +41,48 @@ class Worker(CisWorker):
             audit_queue=audit_queue,
         )
 
-        # 2) Redis clients
+        # 2) Load centralized config
+        cfg = ConfigLoader.get_instance()
+
+        # 3) Redis clients
+        rc = cfg.redis
         self.redis_cache = Redis(
-            host=redis_cache_host,
-            port=redis_cache_port,
-            password=redis_cache_password,
+            host=rc.cache_host,
+            port=rc.cache_port,
+            password=rc.cache_password,
         )
         self.redis_queue = Redis(
-            host=redis_queue_host,
-            port=redis_queue_port,
-            password=redis_queue_password,
+            host=rc.queue_host,
+            port=rc.queue_port,
+            password=rc.queue_password,
         )
 
-        # 3) BlobServiceClient with SAS token
-        account_url = f"https://{promoflyer_storage_account}.blob.core.windows.net"
+        # 4) BlobServiceClient with SAS token
+        sc = cfg.storage
+        account_url = f"https://{sc.promoflyer_storage_account}.blob.core.windows.net"
         self.blob_service_client = BlobServiceClient(
             account_url=account_url,
-            credential=token_cis
+            credential=sc.token_cis
         )
-        self.container_name = promoflyer_container_name
+        self.container_name = sc.promoflyer_container_name
 
-        # 4) Database config for indexer
-        self.db_config = {
-            "server": db_server,
-            "port": db_port,
-            "name": db_name,
-            "user": db_user,
-            "pass": db_pass,
-        }
+        # 5) Database config for indexer
+        db = cfg.database
+        db_uri = f"postgresql://{db.user}:{db.password}@{db.server}:{db.port}/{db.name}"
+        self.index_controller = IndexController(db_uri=db_uri)
 
-        # 5) Azure ML Workspace
+        # 6) Azure ML Workspace
+        aml = cfg.azureml
+        auth = aml.client_id + ":" + aml.client_secret
         self.workspace = Workspace(
-            subscription_id=azureml_subscription_id,
-            resource_group=azureml_resource_group,
-            workspace_name=azureml_workspace_name,
-            tenant_id=azureml_tenant_id,
-            auth=azureml_client_id + ":" + azureml_client_secret
+            subscription_id=aml.subscription_id,
+            resource_group=aml.resource_group,
+            workspace_name=aml.workspace_name,
+            tenant_id=aml.tenant_id,
+            auth=auth
         )
 
-        logger.info("Worker initialized with Redis, BlobServiceClient, DB config, and AzureML workspace.")
+        logger.info("Worker initialized with central config: Redis, BlobServiceClient, DB indexer, and AzureML workspace.")
 
     def validate_request(self, request: CisRequestInput):
         """
@@ -145,9 +114,7 @@ class Worker(CisWorker):
         local_file = os.path.join(tmp_dir, asset.name)
 
         logger.info(f"Downloading input CSV from {container_name}/{blob_name} to {local_file}")
-        blob_client = self.blob_service_client.get_blob_client(
-            container=container_name, blob=blob_name
-        )
+        blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
         with open(local_file, "wb") as f:
             f.write(blob_client.download_blob().readall())
         return local_file
@@ -190,15 +157,12 @@ class Worker(CisWorker):
         """
         local_feedback_files = []
         for e in entries:
-            feedback_path = e['feedback_file']
-            parts = feedback_path.lstrip('/').split('/', 1)
+            parts = e['feedback_file'].lstrip('/').split('/', 1)
             container, blob = parts[0], parts[1]
             tmp_dir = tempfile.mkdtemp()
             local_file = os.path.join(tmp_dir, os.path.basename(blob))
             logger.info(f"Downloading feedback file from {container}/{blob} to {local_file}")
-            blob_client = self.blob_service_client.get_blob_client(
-                container=container, blob=blob
-            )
+            blob_client = self.blob_service_client.get_blob_client(container=container, blob=blob)
             with open(local_file, 'wb') as f:
                 f.write(blob_client.download_blob().readall())
             local_feedback_files.append(local_file)
@@ -211,9 +175,7 @@ class Worker(CisWorker):
         for filepath in local_feedback_files:
             blob_name = os.path.basename(filepath)
             logger.info(f"Uploading feedback file {filepath} to {container_name}/{blob_name}")
-            blob_client = self.blob_service_client.get_blob_client(
-                container=container_name, blob=blob_name
-            )
+            blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
             with open(filepath, 'rb') as data:
                 blob_client.upload_blob(data, overwrite=True)
 
@@ -222,7 +184,6 @@ class Worker(CisWorker):
         Indexes feedback entries in the database.
         """
         logger.info("Indexing feedback entries in database...")
-        controller = IndexController(db_config=self.db_config)
         for entry in entries:
             try:
                 ann = AnnotationSchema(
@@ -233,7 +194,7 @@ class Worker(CisWorker):
                     annotation_path=entry['annotation_path'],
                     image_path=entry['image_path']
                 )
-                controller.add_annotation(ann)
+                self.index_controller.index_annotation(ann)
                 logger.info(f"Indexed annotation for request_id={entry['request_id']}")
             except Exception as e:
                 logger.error(f"Failed to index entry {entry}: {e}")
@@ -266,3 +227,4 @@ class Worker(CisWorker):
         self.process_results(preds, output_path)
 
         logger.info("Worker run completed.")
+        
