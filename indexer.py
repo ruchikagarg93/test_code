@@ -1,56 +1,66 @@
 import logging
-import psycopg2
 from typing import Optional
-from config_loader import ConfigLoader
-
+ 
+from sqlalchemy import Column, Integer, String, create_engine
+from sqlalchemy.orm import sessionmaker, scoped_session, declarative_base
+ 
+from pr_flyers_metrics_worker.worker.worker.config_loader import ConfigLoader
+ 
+# SQLAlchemy base & logger
+ 
+Base = declarative_base()
 logger = logging.getLogger(__name__)
-
-class AnnotationSchema:
-    def __init__(self, request_id: str, country_code: str, retailer: str,
-                 isoweek: int, annotation_path: str, image_path: str):
-        self.request_id = request_id
-        self.country_code = country_code
-        self.retailer = retailer
-        self.isoweek = isoweek
-        self.annotation_path = annotation_path
-        self.image_path = image_path
-
+ 
+class AnnotationSchema(Base):
+    __tablename__ = "annotations_test"
+ 
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    request_id = Column(String(200), nullable=False)
+    country_code = Column(String(2), nullable=False)
+    retailer = Column(String(200), nullable=False)
+    isoweek = Column(Integer, nullable=False)
+    annotation_path = Column(String(1000), unique=True, nullable=False)
+    image_path = Column(String(1000), unique=True, nullable=False)
+ 
 class IndexController:
     def __init__(self, db_uri: Optional[str] = None):
+        
+        """
+        Initializes the IndexController by loading DB URI from ConfigLoader
+        and setting up the SQLAlchemy engine and session.
+        """
+        # Load centralized config
         cfg = ConfigLoader.get_instance()
         db = cfg.database
-
+ 
+        # Build URI if not passed explicitly
         self.db_uri = db_uri or (
-            f"dbname={db.name} user={db.user} password={db.password} "
-            f"host={db.server} port={db.port}"
+            f"postgresql://{db.user}:{db.password}"
+            f"@{db.server}:{db.port}/{db.name}"
         )
-        self.conn = psycopg2.connect(self.db_uri)
-        self.conn.autocommit = True
-        logger.info("IndexController initialized and DB connection established.")
-
+ 
+        # Set up engine and session
+        self.engine = create_engine(self.db_uri)
+        self.Session = scoped_session(
+            sessionmaker(bind=self.engine, expire_on_commit=False)
+        )
+ 
+        # Create table if it doesn't exist
+        Base.metadata.create_all(self.engine)
+        logger.info("IndexController initialized and DB schema ensured.")
+ 
     def index_annotation(self, annotation: AnnotationSchema) -> None:
-        insert_sql = """
-        INSERT INTO annotations
-        (request_id, country_code, retailer, isoweek, annotation_path, image_path)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        ON CONFLICT (annotation_path) DO NOTHING
         """
+        Inserts a single AnnotationSchema instance into the DB.
+        """
+        session = self.Session()
         try:
-            with self.conn.cursor() as cursor:
-                cursor.execute(insert_sql, (
-                    annotation.request_id,
-                    annotation.country_code,
-                    annotation.retailer,
-                    annotation.isoweek,
-                    annotation.annotation_path,
-                    annotation.image_path,
-                ))
+            session.add(annotation)
+            session.commit()
             logger.info(f"Inserted annotation: {annotation.annotation_path}")
         except Exception as e:
-            logger.error(f"Failed to insert annotation {annotation.annotation_path}: {e}")
+            session.rollback()
+            logger.error(f"Failed to insert annotation {annotation}: {e}")
             raise
-
-    def close(self):
-        self.conn.close()
-        logger.info("DB connection closed.")
-        
+        finally:
+            session.close()
