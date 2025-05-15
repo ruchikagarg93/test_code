@@ -1,135 +1,143 @@
-from wrapper_worker.config import Config as BaseConfig
-
-
-class ConfigLoader(BaseConfig):
-    """
-    Custom Config Loader extending wrapper_worker.config.Config
-    with project-specific config accessors.
-    """
-
-    @staticmethod
-    def get_redis_cache_host():
-        return ConfigLoader.config[ConfigLoader.get_env()]["redis_cache_host"]
-
-    @staticmethod
-    def get_redis_cache_port():
-        return int(ConfigLoader.config[ConfigLoader.get_env()]["redis_cache_port"])
-
-    @staticmethod
-    def get_redis_cache_password():
-        return ConfigLoader.config[ConfigLoader.get_env()]["redis_cache_password"]
-
-    @staticmethod
-    def get_redis_queue_host():
-        return ConfigLoader.config[ConfigLoader.get_env()]["redis_queue_host"]
-
-    @staticmethod
-    def get_redis_queue_port():
-        return int(ConfigLoader.config[ConfigLoader.get_env()]["redis_queue_port"])
-
-    @staticmethod
-    def get_redis_queue_password():
-        return ConfigLoader.config[ConfigLoader.get_env()]["redis_queue_password"]
-
-    @staticmethod
-    def get_redis_metadata_host():
-        return ConfigLoader.config[ConfigLoader.get_env()]["redis_metadata_host"]
-
-    @staticmethod
-    def get_redis_metadata_port():
-        return int(ConfigLoader.config[ConfigLoader.get_env()]["redis_metadata_port"])
-
-    @staticmethod
-    def get_redis_metadata_password():
-        return ConfigLoader.config[ConfigLoader.get_env()]["redis_metadata_password"]
-
-    @staticmethod
-    def get_redis_queue_timeout():
-        return int(ConfigLoader.config[ConfigLoader.get_env()]["redis_queue_time_out"])
-
-    @staticmethod
-    def get_queue_name():
-        return ConfigLoader.config[ConfigLoader.get_env()]["redis_queue_name"]
-
-    @staticmethod
-    def get_component_name():
-        return ConfigLoader.config[ConfigLoader.get_env()]["component_name"]
-
-    @staticmethod
-    def log_to_console():
-        return str(ConfigLoader.config[ConfigLoader.get_env()].get("log_to_console", "False")).lower() == "true"
-
-    @staticmethod
-    def log_to_file():
-        return str(ConfigLoader.config[ConfigLoader.get_env()].get("log_to_file", "False")).lower() == "true"
-
-    @staticmethod
-    def get_log_file_name():
-        return ConfigLoader.config[ConfigLoader.get_env()]["get_log_file_name"]
-
-    @staticmethod
-    def get_log_file_path():
-        return ConfigLoader.config[ConfigLoader.get_env()]["log_file_path"]
-
-    @staticmethod
-    def is_continuous():
-        return str(ConfigLoader.config[ConfigLoader.get_env()].get("is_continuous", "False")).lower() == "true"
-
-    @staticmethod
-    def get_adls_config():
-        env_config = ConfigLoader.config[ConfigLoader.get_env()]
-        return {
-            "account_name": env_config["adls_gen2_account_name"],
-            "container_name": env_config["adls_gen2_container_name"],
-            "tenant_id": env_config["adls_gen2_tenant_id"],
-            "client_id": env_config["adls_gen2_client_id"],
-            "client_secret": env_config["adls_gen2_client_secret"]
-        }
-
-    @staticmethod
-    def get_promoflyer_storage():
-        env_config = ConfigLoader.config[ConfigLoader.get_env()]
-        return {
-            "container": env_config["promoflyer_container_name"],
-            "account": env_config["promoflyer_storage_account"]
-        }
-
-    @staticmethod
-    def get_storage_types():
-        env_config = ConfigLoader.config[ConfigLoader.get_env()]
-        return {
-            "input": env_config["input_storage_type"],
-            "output": env_config["output_storage_type"]
-        }
-
-    @staticmethod
-    def get_output_path():
-        return ConfigLoader.config[ConfigLoader.get_env()]["dmle_output_home_path"]
-
-    @staticmethod
-    def get_azureml_config():
-        env_config = ConfigLoader.config[ConfigLoader.get_env()]
-        return {
-            "subscription_id": env_config["azureml_subscription_id"],
-            "resource_group": env_config["azureml_resource_group"],
-            "workspace_name": env_config["azureml_workspace_name"],
-            "tenant_id": env_config["azureml_tenant_id"],
-            "client_id": env_config["azureml_client_id"],
-            "client_secret": env_config["azureml_client_secret"]
-        }
-
-    @staticmethod
-    def get_token_cis():
-        return ConfigLoader.config[ConfigLoader.get_env()]["token_cis"]
-
-    @staticmethod
-    def get_db_config():
-        env_config = ConfigLoader.config[ConfigLoader.get_env()]
-        return {
-            "server": env_config["db_server"],
-            "port": int(env_config["db_port"]),
-            "name": env_config["db_name"],
-            "user": env_config["db_user"],
-            "password": env_config["db_pass"]
-        }
-        
+import yaml
+import os
+from dataclasses import dataclass
+from typing import Optional
+ 
+ 
+@dataclass
+class RedisConfig:
+    cache_host: str
+    cache_port: int
+    cache_password: str
+    queue_host: str
+    queue_port: int
+    queue_password: str
+    metadata_host: str
+    metadata_port: int
+    metadata_password: str
+    queue_time_out: int
+    queue_name: str
+ 
+ 
+@dataclass
+class LoggingConfig:
+    component_name: str
+    log_to_console: bool
+    log_to_file: bool
+    get_log_file_name: str
+    log_file_path: str
+ 
+ 
+@dataclass
+class AzureMLConfig:
+    subscription_id: str
+    resource_group: str
+    workspace_name: str
+    tenant_id: str
+    client_id: str
+    client_secret: str
+ 
+ 
+@dataclass
+class StorageConfig:
+    adls_account_name: str
+    adls_container_name: str
+    adls_tenant_id: str
+    adls_client_id: str
+    adls_client_secret: str
+    promoflyer_container_name: str
+    promoflyer_storage_account: str
+    input_storage_type: str
+    output_storage_type: str
+    dmle_output_home_path: str
+    token_cis: str
+ 
+ 
+@dataclass
+class DatabaseConfig:
+    server: str
+    port: int
+    name: str
+    user: str
+    password: str
+ 
+ 
+@dataclass
+class AppConfig:
+    redis: RedisConfig
+    logging: LoggingConfig
+    azureml: AzureMLConfig
+    storage: StorageConfig
+    database: DatabaseConfig
+    is_continuous: bool
+ 
+ 
+class ConfigLoader:
+    _instance = None
+ 
+    def __init__(self, config_path: str = "./config/config.yaml"):
+        with open(config_path, "r") as f:
+            full_config = yaml.safe_load(f)
+        env = full_config.get("ENV", "rnd")
+        cfg = full_config.get(env, {})
+ 
+        self.redis = RedisConfig(
+            cache_host=cfg["redis_cache_host"],
+            cache_port=int(cfg["redis_cache_port"]),
+            cache_password=cfg["redis_cache_password"],
+            queue_host=cfg["redis_queue_host"],
+            queue_port=int(cfg["redis_queue_port"]),
+            queue_password=cfg["redis_queue_password"],
+            metadata_host=cfg["redis_metadata_host"],
+            metadata_port=int(cfg["redis_metadata_port"]),
+            metadata_password=cfg["redis_metadata_password"],
+            queue_time_out=int(cfg["redis_queue_time_out"]),
+            queue_name=cfg["redis_queue_name"],
+        )
+ 
+        self.logging = LoggingConfig(
+            component_name=cfg["component_name"],
+            log_to_console=cfg["log_to_console"].lower() == "true",
+            log_to_file=cfg["log_to_file"].lower() == "true",
+            get_log_file_name=cfg["get_log_file_name"],
+            log_file_path=cfg["log_file_path"],
+        )
+ 
+        self.azureml = AzureMLConfig(
+            subscription_id=cfg["azureml_subscription_id"],
+            resource_group=cfg["azureml_resource_group"],
+            workspace_name=cfg["azureml_workspace_name"],
+            tenant_id=cfg["azureml_tenant_id"],
+            client_id=cfg["azureml_client_id"],
+            client_secret=cfg["azureml_client_secret"],
+        )
+ 
+        self.storage = StorageConfig(
+            adls_account_name=cfg["adls_gen2_account_name"],
+            adls_container_name=cfg["adls_gen2_container_name"],
+            adls_tenant_id=cfg["adls_gen2_tenant_id"],
+            adls_client_id=cfg["adls_gen2_client_id"],
+            adls_client_secret=cfg["adls_gen2_client_secret"],
+            promoflyer_container_name=cfg["promoflyer_container_name"],
+            promoflyer_storage_account=cfg["promoflyer_storage_account"],
+            input_storage_type=cfg["input_storage_type"],
+            output_storage_type=cfg["output_storage_type"],
+            dmle_output_home_path=cfg["dmle_output_home_path"],
+            token_cis=cfg["token_cis"],
+        )
+ 
+        self.database = DatabaseConfig(
+            server=cfg["db_server"],
+            port=int(cfg["db_port"]),
+            name=cfg["db_name"],
+            user=cfg["db_user"],
+            password=cfg["db_pass"],
+        )
+ 
+        self.is_continuous = cfg.get("is_continuous", False)
+ 
+    @classmethod
+    def get_instance(cls, config_path: str = "./config/config.yaml"):
+        if cls._instance is None:
+            cls._instance = cls(config_path)
+        return cls._instance
