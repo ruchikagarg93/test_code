@@ -2,89 +2,89 @@ import os
 import csv
 import tempfile
 import logging
-import pandas as pd
 
-from typing_extensions import override
-from fsspec import AbstractFileSystem
-from cis.runtime.caching.caching import Caching
-from cis.runtime.messaging import MessageQueue
-from cis.runtime.workers import CisWorker
-from cis.runtime.core import CisRequestInput
-
-from azure.storage.blob import BlobServiceClient
 from redis import Redis
+from azure.storage.blob import BlobServiceClient
 from azureml.core import Workspace
-
+from azureml.core.authentication import ServicePrincipalAuthentication
+from pr_flyers_metrics_worker.worker.worker.config_loader import ConfigLoader
 from pr_flyers_metrics_worker.worker.worker.indexer import AnnotationSchema, IndexController
-from config_loader import ConfigLoader
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-class Worker(CisWorker):
+class Worker:
     def __init__(
         self,
-        filesystem: AbstractFileSystem,
-        cache: Caching,
-        metadata_client: Caching,
-        audit_queue: MessageQueue,
+        # -- Azure Blob Storage
+        promoflyer_storage_account: str,
+        promoflyer_container_name: str,
+        token_cis: str,
+        # -- Redis cache
+        redis_cache_host: str,
+        redis_cache_port: int,
+        redis_cache_password: str,
+        # -- Redis queue
+        redis_queue_host: str,
+        redis_queue_port: int,
+        redis_queue_password: str,
+        # -- Database
+        db_server: str,
+        db_port: int,
+        db_name: str,
+        db_user: str,
+        db_pass: str,
+        # -- Azure ML
+        azureml_subscription_id: str,
+        azureml_resource_group: str,
+        azureml_workspace_name: str,
+        azureml_tenant_id: str,
+        azureml_client_id: str,
+        azureml_client_secret: str,
     ) -> None:
         """
-        Initializes the Worker by loading all configuration centrally
-        and wiring up Redis, Blob, DB indexer, and Azure ML.
+        Initializes the Worker with explicit parameters for storage, cache, DB, and Azure ML.
         """
-        # 1) Initialize base class
-        super().__init__(
-            filesystem=filesystem,
-            cache=cache,
-            metadata_client=metadata_client,
-            audit_queue=audit_queue,
-        )
-
-        # 2) Load centralized config
-        cfg = ConfigLoader.get_instance()
-
-        # 3) Redis clients
-        rc = cfg.redis
+        # 1) Redis clients
         self.redis_cache = Redis(
-            host=rc.cache_host,
-            port=rc.cache_port,
-            password=rc.cache_password,
+            host=redis_cache_host,
+            port=redis_cache_port,
+            password=redis_cache_password,
         )
         self.redis_queue = Redis(
-            host=rc.queue_host,
-            port=rc.queue_port,
-            password=rc.queue_password,
+            host=redis_queue_host,
+            port=redis_queue_port,
+            password=redis_queue_password,
         )
 
-        # 4) BlobServiceClient with SAS token
-        sc = cfg.storage
-        account_url = f"https://{sc.promoflyer_storage_account}.blob.core.windows.net"
+        # 2) BlobServiceClient with SAS token
+        account_url = f"https://{promoflyer_storage_account}.blob.core.windows.net"
         self.blob_service_client = BlobServiceClient(
             account_url=account_url,
-            credential=sc.token_cis
+            credential=token_cis
         )
-        self.container_name = sc.promoflyer_container_name
+        self.container_name = promoflyer_container_name
 
-        # 5) Database config for indexer
-        db = cfg.database
-        db_uri = f"postgresql://{db.user}:{db.password}@{db.server}:{db.port}/{db.name}"
+        # 3) Database config for indexer
+        db_uri = f"postgresql://{db_user}:{db_pass}@{db_server}:{db_port}/{db_name}"
         self.index_controller = IndexController(db_uri=db_uri)
 
-        # 6) Azure ML Workspace
-        aml = cfg.azureml
-        auth = aml.client_id + ":" + aml.client_secret
+        # 4) Azure ML Workspace
+        sp_auth = ServicePrincipalAuthentication(
+            tenant_id=azureml_tenant_id,
+            service_principal_id=azureml_client_id,
+            service_principal_password=azureml_client_secret
+        )
         self.workspace = Workspace(
-            subscription_id=aml.subscription_id,
-            resource_group=aml.resource_group,
-            workspace_name=aml.workspace_name,
-            tenant_id=aml.tenant_id,
-            auth=auth
+            subscription_id=azureml_subscription_id,
+            resource_group=azureml_resource_group,
+            workspace_name=azureml_workspace_name,
+            auth=sp_auth
         )
 
-        logger.info("Worker initialized with central config: Redis, BlobServiceClient, DB indexer, and AzureML workspace.")
+        logger.info("Worker initialized: Redis, BlobServiceClient, DB indexer, and AzureML workspace.")
 
-    def validate_request(self, request: CisRequestInput):
+    def validate_request(self, request):
         """
         Validates the incoming request for required fields.
         """
@@ -96,7 +96,7 @@ class Worker(CisWorker):
             if asset.iso_week is None:
                 raise ValueError(f"Asset {asset.name} is missing 'iso_week'.")
 
-    def download_input(self, request: CisRequestInput) -> str:
+    def download_input(self, request) -> str:
         """
         Downloads the input CSV file locally to a temporary folder.
         Returns the local file path.
@@ -212,7 +212,7 @@ class Worker(CisWorker):
             writer.writeheader()
             writer.writerows(entries)
 
-    def run(self, request: CisRequestInput, output_path: str, feedback_container: str):
+    def run(self, request, output_path: str, feedback_container: str):
         """
         Orchestrates the full worker process.
         """
@@ -227,4 +227,3 @@ class Worker(CisWorker):
         self.process_results(preds, output_path)
 
         logger.info("Worker run completed.")
-        
