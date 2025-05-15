@@ -1,7 +1,9 @@
-from src.pr_flyers_metrics_worker.worker.worker.request import CisRequestUp
-from src.pr_flyers_metrics_worker.worker import worker
-from src.pr_flyers_metrics_worker.worker.worker import config
- def main():
+from pr_flyers_metrics_worker.worker.worker import request
+from pr_flyers_metrics_worker.worker.worker import worker
+from pr_flyers_metrics_worker.worker.worker.config_loader import ConfigLoader
+import os
+
+def main():
     # Sample request input
     request_data = {
         "application": "projectrun",
@@ -23,14 +25,14 @@ from src.pr_flyers_metrics_worker.worker.worker import config
         }
     }
     
-    req = CisRequestUp(**request_data)
-    worker.run(req, output_path, feedback_container)
+    cfg = ConfigLoader.get_instance()
+    req = request.CisRequestUp(**request_data)
 
-    # 2) Compute feedback_container & output_path from Config + request
-    feedback_container = Config.get_promoflyer_container_name()  # e.g. "pflyers-data-rnd"
+    # 2) Compute feedback_container & output_path from cfg + request
+    feedback_container = cfg.storage.promoflyer_container_name  # e.g. "pflyers-data-rnd"
     
     asset = req.input.assets[0]
-    base = Config.get_dmle_output_home_path()  # "dmle"
+    base = cfg.storage.dmle_output_home_path  # "dmle"
     output_path = os.path.join(
         base,
         req.application,
@@ -41,43 +43,37 @@ from src.pr_flyers_metrics_worker.worker.worker import config
     # Ensure directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
-    # 3) Instantiate Worker
-    worker = Worker(
-        # -- CisWorker core dependencies:
-        filesystem=LocalFileSystem(),     # local fs for now
-        cache=None,                       # not used by your business logic
-        metadata_client=None,             # likewise
-        audit_queue=None,                 # OK for local test
-
+    # 3) Instantiate worker
+    worker = worker(
         # -- Azure Blob Storage
-        promoflyer_storage_account=Config.get_promoflyer_storage_account(),
-        promoflyer_container_name=Config.get_promoflyer_container_name(),
-        token_cis=Config.get_token_cis(),
+        promoflyer_storage_account=cfg.storage.promoflyer_storage_account,
+        promoflyer_container_name=cfg.storage.promoflyer_container_name,
+        token_cis=cfg.storage.token_cis,
 
         # -- Redis cache
-        redis_cache_host=Config.get_redis_cache_host(),
-        redis_cache_port=Config.get_redis_cache_port(),
-        redis_cache_password=Config.get_redis_cache_password(),
+        redis_cache_host=cfg.redis.cache_host,
+        redis_cache_port=cfg.redis.cache_port,
+        redis_cache_password=cfg.redis.cache_password,
 
         # -- Redis queue
-        redis_queue_host=Config.get_redis_queue_host(),
-        redis_queue_port=Config.get_redis_queue_port(),
-        redis_queue_password=Config.get_redis_queue_password(),
+        redis_queue_host=cfg.redis.queue_host,
+        redis_queue_port=cfg.redis.queue_port,
+        redis_queue_password=cfg.redis.queue_password,
 
         # -- Database
-        db_server=Config.get_db_server(),
-        db_port=Config.get_db_port(),
-        db_name=Config.get_db_name(),
-        db_user=Config.get_db_user(),
-        db_pass=Config.get_db_pass(),
+        db_server=cfg.database.server,
+        db_port=cfg.database.port,
+        db_name=cfg.database.name,
+        db_user=cfg.database.user,
+        db_pass=cfg.database.password,
 
         # -- Azure ML
-        azureml_subscription_id=Config.get_azureml_subscription_id(),
-        azureml_resource_group=Config.get_azureml_resource_group(),
-        azureml_workspace_name=Config.get_azureml_workspace_name(),
-        azureml_tenant_id=Config.get_azureml_tenant_id(),
-        azureml_client_id=Config.get_azureml_client_id(),
-        azureml_client_secret=Config.get_azureml_client_secret(),
+        azureml_subscription_id=cfg.azureml.subscription_id,
+        azureml_resource_group=cfg.azureml.resource_group,
+        azureml_workspace_name=cfg.azureml.workspace_name,
+        azureml_tenant_id=cfg.azureml.tenant_id,
+        azureml_client_id=cfg.azureml.client_id,
+        azureml_client_secret=cfg.azureml.client_secret,
     )
 
     # 4) Run the worker
