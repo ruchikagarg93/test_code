@@ -3,38 +3,28 @@ import csv
 import tempfile
 import logging
 
-from redis import Redis
 from azure.storage.blob import BlobServiceClient
 from azureml.core import Workspace
 from azureml.core.authentication import ServicePrincipalAuthentication
-from pr_flyers_metrics_worker.worker.worker.config_loader import ConfigLoader
 from pr_flyers_metrics_worker.worker.worker.indexer import AnnotationSchema, IndexController
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
+
 class Worker:
     def __init__(
         self,
-        # -- Azure Blob Storage
         promoflyer_storage_account: str,
         promoflyer_container_name: str,
         token_cis: str,
-        # -- Redis cache
-        redis_cache_host: str,
-        redis_cache_port: int,
-        redis_cache_password: str,
-        # -- Redis queue
-        redis_queue_host: str,
-        redis_queue_port: int,
-        redis_queue_password: str,
-        # -- Database
+        # Database config for indexer
         db_server: str,
         db_port: int,
         db_name: str,
         db_user: str,
         db_pass: str,
-        # -- Azure ML
+        # Azure ML
         azureml_subscription_id: str,
         azureml_resource_group: str,
         azureml_workspace_name: str,
@@ -42,22 +32,7 @@ class Worker:
         azureml_client_id: str,
         azureml_client_secret: str,
     ) -> None:
-        """
-        Initializes the Worker with explicit parameters for storage, cache, DB, and Azure ML.
-        """
-        # 1) Redis clients
-        self.redis_cache = Redis(
-            host=redis_cache_host,
-            port=redis_cache_port,
-            password=redis_cache_password,
-        )
-        self.redis_queue = Redis(
-            host=redis_queue_host,
-            port=redis_queue_port,
-            password=redis_queue_password,
-        )
-
-        # 2) BlobServiceClient with SAS token
+        # Blob client
         account_url = f"https://{promoflyer_storage_account}.blob.core.windows.net"
         self.blob_service_client = BlobServiceClient(
             account_url=account_url,
@@ -65,29 +40,26 @@ class Worker:
         )
         self.container_name = promoflyer_container_name
 
-        # 3) Database config for indexer
+        # DB indexer
         db_uri = f"postgresql://{db_user}:{db_pass}@{db_server}:{db_port}/{db_name}"
         self.index_controller = IndexController(db_uri=db_uri)
 
-        # 4) Azure ML Workspace
+        # Azure ML workspace
         sp_auth = ServicePrincipalAuthentication(
             tenant_id=azureml_tenant_id,
             service_principal_id=azureml_client_id,
-            service_principal_password=azureml_client_secret
+            service_principal_password=azureml_client_secret,
         )
         self.workspace = Workspace(
             subscription_id=azureml_subscription_id,
             resource_group=azureml_resource_group,
             workspace_name=azureml_workspace_name,
-            auth=sp_auth
+            auth=sp_auth,
         )
 
-        logger.info("Worker initialized: Redis, BlobServiceClient, DB indexer, and AzureML workspace.")
+        logger.info("Worker initialized with BlobServiceClient, DB indexer, and AzureML workspace.")
 
     def validate_request(self, request):
-        """
-        Validates the incoming request for required fields.
-        """
         if not request.input.assets:
             raise ValueError("Request must contain at least one asset.")
         for asset in request.input.assets:
@@ -97,17 +69,13 @@ class Worker:
                 raise ValueError(f"Asset {asset.name} is missing 'iso_week'.")
 
     def download_input(self, request) -> str:
-        """
-        Downloads the input CSV file locally to a temporary folder.
-        Returns the local file path.
-        """
         asset = request.input.assets[0]
         path = asset.path
         if not path:
-            logger.error("No path specified for input asset.")
-            return ""
+            raise ValueError("No path specified for input asset.")
 
-        parts = str(path).lstrip("/").split('/', 1)
+        # path like "/projectrun/promoflyers/input/REQ-xxx/metric_example.csv"
+        parts = str(path).lstrip("/").split("/", 1)
         container_name, blob_name = parts[0], parts[1]
 
         tmp_dir = tempfile.mkdtemp()
@@ -117,13 +85,10 @@ class Worker:
         blob_client = self.blob_service_client.get_blob_client(container=container_name, blob=blob_name)
         with open(local_file, "wb") as f:
             f.write(blob_client.download_blob().readall())
+
         return local_file
 
     def check_prediction_files(self, local_input_csv: str) -> list:
-        """
-        Checks if the corresponding prediction file exists for each feedback URL file
-        in the input CSV. Returns a list of valid entries with metadata.
-        """
         valid_entries = []
         with open(local_input_csv, 'r', newline='') as f:
             reader = csv.DictReader(f)
@@ -151,10 +116,6 @@ class Worker:
         return valid_entries
 
     def download_feedback(self, entries: list) -> list:
-        """
-        Downloads each feedback file listed in entries to a temporary folder.
-        Returns a list of local feedback file paths.
-        """
         local_feedback_files = []
         for e in entries:
             parts = e['feedback_file'].lstrip('/').split('/', 1)
@@ -169,9 +130,6 @@ class Worker:
         return local_feedback_files
 
     def upload_feedback(self, local_feedback_files: list, container_name: str):
-        """
-        Uploads each local feedback file to Azure Storage in the specified container.
-        """
         for filepath in local_feedback_files:
             blob_name = os.path.basename(filepath)
             logger.info(f"Uploading feedback file {filepath} to {container_name}/{blob_name}")
@@ -180,9 +138,6 @@ class Worker:
                 blob_client.upload_blob(data, overwrite=True)
 
     def index_feedback(self, entries: list):
-        """
-        Indexes feedback entries in the database.
-        """
         logger.info("Indexing feedback entries in database...")
         for entry in entries:
             try:
@@ -200,9 +155,6 @@ class Worker:
                 logger.error(f"Failed to index entry {entry}: {e}")
 
     def process_results(self, entries: list, output_path: str):
-        """
-        Generates output CSV file for the worker response.
-        """
         logger.info(f"Generating output CSV at {output_path}")
         if not entries:
             logger.warning("No entries to write to output CSV.")
@@ -213,9 +165,6 @@ class Worker:
             writer.writerows(entries)
 
     def run(self, request, output_path: str, feedback_container: str):
-        """
-        Orchestrates the full worker process.
-        """
         logger.info("Starting worker run...")
         self.validate_request(request)
 
